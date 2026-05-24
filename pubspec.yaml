@@ -1,0 +1,37 @@
+name: coffee_telkom_app
+description: Coffee Telkom Mobile App
+
+publish_to: "none"
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.19.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.2
+
+  # TAMBAHKAN BARIS INI (Pastikan indentasi/jaraknya sama dengan cupertino_icons)
+  carousel_slider: ^5.0.0
+  # Nanti tambahkan dependencies lain sesuai kebutuhan:
+  # - http: untuk API calls
+  # - shared_preferences: untuk local storage
+  # - provider/riverpod: untuk state management
+  # - google_fonts: untuk custom fonts
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+  # Optional: Custom fonts
+  # fonts:
+  #   - family: YourFontName
+  #     fonts:
+  #       - asset: assets/fonts/YourFontName.ttf
