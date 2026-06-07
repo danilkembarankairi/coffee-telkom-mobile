@@ -25,16 +25,33 @@ class OrderItem {
       };
 
   factory OrderItem.fromJson(Map<String, dynamic> json) => OrderItem(
-        id: json['id'],
-        name: json['name'],
-        price: json['price'],
-        quantity: json['quantity'],
-        image: json['image'],
-        customization: json['customization'],
-      );
+      id: 0,
+      name: json['name'] ?? '',
+      price: json['price'] ?? 0,
+      quantity: json['quantity'] ?? 0,
+      image: 'assets/images/coffee.png',
+      customization: json['sugarLevel'],
+    );
 }
 
 class Order {
+  static String _mapStatus(String? status) {
+  switch (status) {
+    case 'processing':
+      return 'Processing';
+    case 'preparing':
+      return 'Preparing';
+    case 'ready':
+      return 'Ready';
+    case 'completed':
+      return 'Completed';
+    case 'cancelled':
+      return 'Cancelled';
+    default:
+      return 'Processing';
+  }
+}
+
   final String id;
   final DateTime orderDate;
   final String orderType; // 'Dine-in' or 'Takeaway'
@@ -98,18 +115,33 @@ class Order {
         'status': status,
       };
 
-  factory Order.fromJson(Map<String, dynamic> json) => Order(
-        id: json['id'],
-        orderDate: DateTime.parse(json['orderDate']),
-        orderType: json['orderType'],
-        tableNumber: json['tableNumber'],
-        pickupTime: json['pickupTime'],
-        paymentMethod: json['paymentMethod'],
-        items:
-            (json['items'] as List).map((i) => OrderItem.fromJson(i)).toList(),
-        subtotal: json['subtotal'],
-        tax: json['tax'],
-        total: json['total'],
-        status: json['status'],
-      );
+  factory Order.fromJson(Map<String, dynamic> json) {
+  final totalAmount =
+    (json['totalAmount'] ?? json['total'] ?? 0).toDouble();
+
+final tax =
+    (json['tax'] ?? 0).toDouble();
+
+  return Order(
+    id: json['_id'] ?? '',
+    orderDate: DateTime.parse(
+  json['createdAt'] ?? json['orderDate'],
+),
+    orderType: json['orderType'] ?? 'dine-in',
+    tableNumber: json['tableNumber'],
+    pickupTime: null,
+    paymentMethod: json['paymentMethod'] ?? 'cash',
+
+    items: (json['items'] as List)
+        .map((i) => OrderItem.fromJson(i))
+        .toList(),
+
+    subtotal: totalAmount - tax,
+    tax: tax,
+    total: totalAmount,
+
+    status: _mapStatus(json['status']),
+  );
 }
+}
+

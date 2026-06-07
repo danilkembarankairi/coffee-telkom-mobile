@@ -496,7 +496,7 @@ class _CartScreenState extends State<CartScreen> {
     );
   }
 
-  String _formatPrice(double price) {
+   String _formatPrice(num price) {
     return price.toStringAsFixed(0).replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
   }

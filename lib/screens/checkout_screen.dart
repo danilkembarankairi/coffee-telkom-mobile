@@ -363,6 +363,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                               paymentMethod: _selectedPayment,
                               cartItems: widget.cartItems,
                               total: widget.total)));
+                                if (mounted) setState(() => _isNavigating = false);
                 }
               : null,
           style: ElevatedButton.styleFrom(
@@ -385,7 +386,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  String _formatPrice(double price) {
+   String _formatPrice(num price) {
     return price.toStringAsFixed(0).replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
   }

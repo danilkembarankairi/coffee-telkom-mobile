@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'order_success_screen.dart';
 import 'menu_screen.dart';
+import '../models/order_model.dart';
+import '../services/order_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PaymentScreen extends StatefulWidget {
   final String orderType;
@@ -202,21 +207,90 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Future<void> _processPayment() async {
     setState(() => _isProcessing = true);
-
     await Future.delayed(const Duration(seconds: 2));
-
     if (!mounted) return;
 
-    setState(() => _isProcessing = false);
+    final subtotal = widget.cartItems.fold<double>(
+        0,
+        (sum, item) =>
+            sum + (item['price'] as num) * (item['quantity'] as num));
+    final tax = subtotal * 0.11;
+    final total = subtotal + tax;
 
-    final orderNumber =
-        'CT-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+    // ─── Kirim ke backend MongoDB ─────────────────────────────────
+    String orderId =
+        'CT-${DateTime.now().millisecondsSinceEpoch.toString().substring(5)}';
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      if (token != null) {
+        final response = await http.post(
+          Uri.parse('https://coffee-telkom.my.id/api/order'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            // ✅ FIX: lowercase agar sesuai enum backend ('dine-in' / 'takeaway')
+            'orderType': widget.orderType.toLowerCase(),
+            'tableNumber': widget.table,
+            'paymentMethod': widget.paymentMethod,
+            'tax': tax,
+            'items': widget.cartItems
+                .map((item) => {
+                      'name': item['name'],
+                      'price': item['price'],
+                      'quantity': item['quantity'],
+                      'sugarLevel': item['customization'] ?? '',
+                    })
+                .toList(),
+          }),
+        );
+
+        // ✅ FIX: Pakai _id dari MongoDB sebagai orderId
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          orderId = data['_id'] ?? orderId;
+        }
+      }
+    } catch (e) {
+      // Gagal kirim ke backend, tetap lanjut dengan ID lokal
+    }
+    // ─────────────────────────────────────────────────────────────
+
+    // Simpan lokal juga (untuk cache My Orders di app)
+    final order = Order(
+      id: orderId, // ✅ Pakai _id dari MongoDB
+      orderDate: DateTime.now(),
+      orderType: widget.orderType,
+      tableNumber: widget.table,
+      paymentMethod: widget.paymentMethod ?? 'cash',
+      items: widget.cartItems
+          .map((item) => OrderItem(
+                id: item['id'] as int,
+                name: item['name'] as String,
+                price: (item['price'] as num).toInt(),
+                quantity: item['quantity'] as int,
+                image: item['image'] as String,
+                customization: item['customization'] as String?,
+              ))
+          .toList(),
+      subtotal: subtotal,
+      tax: tax,
+      total: total,
+      status: 'Processing',
+    );
+    await OrderService().addOrder(order);
+
+    setState(() => _isProcessing = false);
 
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
           builder: (context) => OrderSuccessScreen(
-              orderNumber: orderNumber, total: widget.total)),
+              orderNumber: orderId, total: widget.total)),
       (route) => false,
     );
   }
@@ -231,7 +305,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     return methods[id] ?? 'Unknown';
   }
 
-  String _formatPrice(double price) {
+  String _formatPrice(num price) {
     return price.toStringAsFixed(0).replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
   }

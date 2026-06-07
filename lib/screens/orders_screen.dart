@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/order_model.dart';
-import '../services/order_service.dart';
 import 'order_detail_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   final int initialIndex;
-  const OrdersScreen({Key? key, this.initialIndex = 1})
-      : super(key: key); // ✅ Default 1 (Orders
+  const OrdersScreen({Key? key, this.initialIndex = 1}) : super(key: key);
+
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
 }
@@ -15,7 +17,11 @@ class _OrdersScreenState extends State<OrdersScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
-  final _orderService = OrderService();
+
+  // ✅ FIX: Ganti dari OrderService lokal → fetch dari backend
+  List<Order> _orders = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -30,8 +36,52 @@ class _OrdersScreenState extends State<OrdersScreen>
     );
     _animationController.forward();
 
-    // Load sample orders untuk demo
-    _orderService.addSampleOrders();
+    // ✅ Fetch orders dari API saat screen dibuka
+    _fetchOrders();
+  }
+
+  // ✅ FIX: Ambil orders milik user dari backend
+  Future<void> _fetchOrders() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      if (token == null) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Silakan login terlebih dahulu';
+        });
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse('https://coffee-telkom.my.id/api/order/my'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        setState(() {
+          _orders = data.map((e) => Order.fromJson(e)).toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Gagal memuat pesanan';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Tidak dapat terhubung ke server';
+      });
+    }
   }
 
   @override
@@ -42,13 +92,10 @@ class _OrdersScreenState extends State<OrdersScreen>
 
   @override
   Widget build(BuildContext context) {
-    final orders = _orderService.orders;
-
     return Scaffold(
       backgroundColor: const Color(0xFFFAF8F3),
       body: CustomScrollView(
         slivers: [
-          // Modern App Bar
           SliverAppBar(
             expandedHeight: 100,
             floating: false,
@@ -74,6 +121,15 @@ class _OrdersScreenState extends State<OrdersScreen>
               ),
               onPressed: () => Navigator.pop(context),
             ),
+            // ✅ Tombol refresh
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.refresh_rounded,
+                    color: Color(0xFF6B5B4F)),
+                onPressed: _fetchOrders,
+                tooltip: 'Refresh',
+              ),
+            ],
             title: FadeTransition(
               opacity: _fadeAnimation,
               child: const Text(
@@ -105,29 +161,67 @@ class _OrdersScreenState extends State<OrdersScreen>
             ),
           ),
 
-          // Orders List or Empty State
-          orders.isEmpty
-              ? SliverFillRemaining(
-                  child: FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: _buildEmptyState(),
-                  ),
-                )
-              : SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final order = orders[index];
-                        return FadeTransition(
-                          opacity: _fadeAnimation,
-                          child: _buildOrderCard(order, index),
-                        );
-                      },
-                      childCount: orders.length,
-                    ),
-                  ),
+          // ✅ Loading state
+          if (_isLoading)
+            const SliverFillRemaining(
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFF6B5B4F),
                 ),
+              ),
+            )
+          // ✅ Error state
+          else if (_errorMessage != null)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.wifi_off_rounded,
+                        size: 48, color: Color(0xFFBDBDBD)),
+                    const SizedBox(height: 16),
+                    Text(_errorMessage!,
+                        style: const TextStyle(color: Color(0xFF9E9E9E))),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _fetchOrders,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6B5B4F),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Coba Lagi'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          // ✅ Empty state
+          else if (_orders.isEmpty)
+            SliverFillRemaining(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: _buildEmptyState(),
+              ),
+            )
+          // ✅ Orders list dari backend
+          else
+            SliverPadding(
+              padding: const EdgeInsets.all(16),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final order = _orders[index];
+                    return FadeTransition(
+                      opacity: _fadeAnimation,
+                      child: _buildOrderCard(order, index),
+                    );
+                  },
+                  childCount: _orders.length,
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -196,9 +290,7 @@ class _OrdersScreenState extends State<OrdersScreen>
               width: 220,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context); // Back to menu
-                },
+                onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6B5B4F),
                   foregroundColor: Colors.white,
@@ -231,13 +323,15 @@ class _OrdersScreenState extends State<OrdersScreen>
 
   Widget _buildOrderCard(Order order, int index) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
+      onTap: () async {
+        // ✅ Setelah kembali dari detail, refresh list
+        await Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => OrderDetailScreen(order: order),
           ),
         );
+        _fetchOrders();
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
@@ -257,12 +351,14 @@ class _OrdersScreenState extends State<OrdersScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header: Order ID + Status
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    order.id,
+                    // Tampilkan ID pendek agar tidak terlalu panjang
+                    order.id.length > 16
+                        ? '...${order.id.substring(order.id.length - 16)}'
+                        : order.id,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
@@ -275,8 +371,8 @@ class _OrdersScreenState extends State<OrdersScreen>
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Color(
-                          int.parse(order.statusColor.replaceAll('#', '0xFF'))),
+                      color: Color(int.parse(
+                          order.statusColor.replaceAll('#', '0xFF'))),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -291,8 +387,6 @@ class _OrdersScreenState extends State<OrdersScreen>
                 ],
               ),
               const SizedBox(height: 12),
-
-              // Order Info: Date + Type
               Row(
                 children: [
                   Icon(
@@ -310,7 +404,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                   ),
                   const SizedBox(width: 16),
                   Icon(
-                    order.orderType == 'Dine-in'
+                    order.orderType.toLowerCase() == 'dine-in'
                         ? Icons.table_bar_rounded
                         : Icons.takeout_dining_rounded,
                     size: 14,
@@ -318,7 +412,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    '${order.orderType}${order.tableNumber != null ? ' • ${order.tableNumber}' : ''}',
+                    '${order.orderType}${order.tableNumber != null && order.tableNumber!.isNotEmpty ? ' • ${order.tableNumber}' : ''}',
                     style: const TextStyle(
                       fontSize: 13,
                       color: Color(0xFF757575),
@@ -327,21 +421,15 @@ class _OrdersScreenState extends State<OrdersScreen>
                 ],
               ),
               const SizedBox(height: 12),
-
-              // Items Preview
               ...order.items.take(2).map((item) => Padding(
                     padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        Text(
-                          '• ${item.quantity}x ${item.name}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF3E2723),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      '• ${item.quantity}x ${item.name}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF3E2723),
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   )),
               if (order.items.length > 2)
@@ -356,8 +444,6 @@ class _OrdersScreenState extends State<OrdersScreen>
                   ),
                 ),
               const SizedBox(height: 12),
-
-              // Footer: Total + Arrow
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

@@ -4,6 +4,8 @@ import 'about_screen.dart';
 import 'contact_screen.dart';
 import 'login_screen.dart';
 import 'orders_screen.dart';
+import 'profile_screen.dart';
+import '../services/order_service.dart';
 
 class MenuScreen extends StatefulWidget {
   final int initialIndex;
@@ -140,6 +142,8 @@ class _MenuScreenState extends State<MenuScreen>
       curve: Curves.easeInOut,
     );
     _animationController.forward();
+
+    
   }
 
   @override
@@ -205,280 +209,243 @@ class _MenuScreenState extends State<MenuScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.75,
-        decoration: const BoxDecoration(
-          color: Color(0xFFFAF8F3),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: const Color(0xFFE0D6C9),
-                borderRadius: BorderRadius.circular(2),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setSheetState) => Container(
+          height: MediaQuery.of(context).size.height * 0.75,
+          decoration: const BoxDecoration(
+            color: Color(0xFFFAF8F3),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0D6C9),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      width: 70,
-                      height: 70,
-                      color: const Color(0xFFF5F0E8),
-                      child: Image.asset(
-                        item['image'],
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => const Icon(
-                            Icons.local_cafe,
-                            color: Color(0xFF6B5B4F)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          item['name'],
-                          style: const TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF3E2723),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Rp${_formatPrice(item['price'])}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF6B5B4F),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1, color: Color(0xFFE0D6C9)),
-            Expanded(
-              child: SingleChildScrollView(
+              Padding(
                 padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
                   children: [
-                    const Text(
-                      'SIZE',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF9E9E9E),
-                        letterSpacing: 1,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        width: 70,
+                        height: 70,
+                        color: const Color(0xFFF5F0E8),
+                        child: Image.asset(item['image'],
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => const Icon(
+                                Icons.local_cafe,
+                                color: Color(0xFF6B5B4F))),
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: availableSizes.map((size) {
-                        final isSelected = selectedSize == size;
-                        return Expanded(
-                          child: GestureDetector(
-                            onTap: () => setState(() => selectedSize = size),
-                            child: Container(
-                              margin: const EdgeInsets.only(right: 10),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 18,
-                                vertical: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF6B5B4F)
-                                    : const Color(0xFFF5F0E8),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSelected
-                                      ? const Color(0xFF6B5B4F)
-                                      : Colors.transparent,
-                                ),
-                              ),
-                              child: Text(
-                                size,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : const Color(0xFF3E2723),
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 20),
-                    if (availableTemps.length > 1) ...[
-                      const Text(
-                        'TEMPERATURE',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF9E9E9E),
-                          letterSpacing: 1,
-                        ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item['name'],
+                              style: const TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF3E2723))),
+                          const SizedBox(height: 4),
+                          Text('Rp${_formatPrice(item['price'])}',
+                              style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF6B5B4F))),
+                        ],
                       ),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFE0D6C9)),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('SIZE',
+                          style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF9E9E9E),
+                              letterSpacing: 1)),
                       const SizedBox(height: 10),
                       Row(
-                        children: availableTemps.map((temp) {
-                          final isSelected = selectedTemp == temp;
+                        children: availableSizes.map((size) {
+                          final isSelected = selectedSize == size;
                           return Expanded(
                             child: GestureDetector(
-                              onTap: () => setState(() => selectedTemp = temp),
+                              onTap: () =>
+                                  setSheetState(() => selectedSize = size),
                               child: Container(
                                 margin: const EdgeInsets.only(right: 10),
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 12,
-                                ),
+                                    horizontal: 18, vertical: 12),
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? const Color(0xFF6B5B4F)
                                       : const Color(0xFFF5F0E8),
                                   borderRadius: BorderRadius.circular(10),
                                   border: Border.all(
-                                    color: isSelected
-                                        ? const Color(0xFF6B5B4F)
-                                        : Colors.transparent,
-                                  ),
+                                      color: isSelected
+                                          ? const Color(0xFF6B5B4F)
+                                          : Colors.transparent),
                                 ),
-                                child: Text(
-                                  temp,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : const Color(0xFF3E2723),
-                                  ),
-                                ),
+                                child: Text(size,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : const Color(0xFF3E2723))),
                               ),
                             ),
                           );
                         }).toList(),
                       ),
                       const SizedBox(height: 20),
-                    ],
-                    if (hasSugar) ...[
-                      const Text(
-                        'SUGAR LEVEL',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF9E9E9E),
-                          letterSpacing: 1,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children:
-                            ['0%', '25%', '50%', '75%', '100%'].map((sugar) {
-                          final isSelected = selectedSugar == sugar;
-                          return GestureDetector(
-                            onTap: () => setState(() => selectedSugar = sugar),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF6B5B4F)
-                                    : const Color(0xFFF5F0E8),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                sugar,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : const Color(0xFF3E2723),
+                      if (availableTemps.length > 1) ...[
+                        const Text('TEMPERATURE',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF9E9E9E),
+                                letterSpacing: 1)),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: availableTemps.map((temp) {
+                            final isSelected = selectedTemp == temp;
+                            return Expanded(
+                              child: GestureDetector(
+                                onTap: () =>
+                                    setSheetState(() => selectedTemp = temp),
+                                child: Container(
+                                  margin: const EdgeInsets.only(right: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: isSelected
+                                        ? const Color(0xFF6B5B4F)
+                                        : const Color(0xFFF5F0E8),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                        color: isSelected
+                                            ? const Color(0xFF6B5B4F)
+                                            : Colors.transparent),
+                                  ),
+                                  child: Text(temp,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : const Color(0xFF3E2723))),
                                 ),
                               ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
+                            );
+                          }).toList(),
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                      if (hasSugar) ...[
+                        const Text('SUGAR LEVEL',
+                            style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF9E9E9E),
+                                letterSpacing: 1)),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: ['0%', '25%', '50%', '75%', '100%']
+                              .map((sugar) {
+                            final isSelected = selectedSugar == sugar;
+                            return GestureDetector(
+                              onTap: () =>
+                                  setSheetState(() => selectedSugar = sugar),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFF6B5B4F)
+                                      : const Color(0xFFF5F0E8),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(sugar,
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : const Color(0xFF3E2723))),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
                     ],
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 20,
+                        offset: const Offset(0, -4))
                   ],
                 ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: () {
-                    _addToCart(
-                      item,
-                      size: selectedSize,
-                      sugarLevel: hasSugar ? selectedSugar : null,
-                      temperature:
-                          availableTemps.length > 1 ? selectedTemp : null,
-                    );
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6B5B4F),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      _addToCart(item,
+                          size: selectedSize,
+                          sugarLevel: hasSugar ? selectedSugar : null,
+                          temperature:
+                              availableTemps.length > 1 ? selectedTemp : null);
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6B5B4F),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.add_shopping_cart_rounded, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'ADD TO CART • Rp${_formatPrice(item['price'])}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.add_shopping_cart_rounded, size: 20),
+                        const SizedBox(width: 8),
+                        Text('ADD TO CART • Rp${_formatPrice(item['price'])}',
+                            style: const TextStyle(
+                                fontSize: 14, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -546,6 +513,13 @@ class _MenuScreenState extends State<MenuScreen>
           context,
           MaterialPageRoute(
               builder: (_) => const ContactScreen(initialIndex: 3)),
+        );
+        break;
+        case 4:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (_) => const ProfileScreen(initialIndex: 4)),
         );
         break;
     }
@@ -1306,6 +1280,7 @@ class _MenuScreenState extends State<MenuScreen>
               Icons.receipt_long_rounded, 'Orders', 1, Icons.receipt_long),
           _buildNavItem(Icons.info_rounded, 'About', 2, Icons.info),
           _buildNavItem(Icons.mail_rounded, 'Contact', 3, Icons.mail),
+          _buildNavItem(Icons.person_rounded, 'Profile', 4, Icons.person),
         ],
       ),
     );
@@ -1407,7 +1382,8 @@ class _MenuScreenState extends State<MenuScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
+                        onPressed: () {
+                        OrderService().clearOrders(); // ← tambah ini
                         Navigator.pushAndRemoveUntil(
                           context,
                           MaterialPageRoute(

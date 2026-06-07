@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'register_screen.dart';
-import 'menu_screen.dart'; // ✅ Ganti ini
+import 'menu_screen.dart'; 
+import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key})
@@ -244,19 +245,51 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () {
-                            if (_formKey.currentState!.validate()) {
-                              // Login logic here
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const MenuScreen(
-                                      initialIndex:
-                                          0), // ✅ Kembali ke MenuScreen biasa
-                                ),
-                              );
-                            }
-                          },
+                          onPressed: () async {
+  if (!_formKey.currentState!.validate()) return;
+
+  try {
+    final result = await ApiService.login(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+    );
+
+    print(result);
+
+    if (result['token'] != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Login berhasil'),
+        ),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const MenuScreen(
+            initialIndex: 0,
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['msg'] ?? 'Login gagal',
+          ),
+        ),
+      );
+    }
+  } catch (e) {
+    print(e);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Error: $e'),
+      ),
+    );
+  }
+},
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF6B5B4F),
                             shape: RoundedRectangleBorder(

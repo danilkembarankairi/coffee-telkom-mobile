@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'menu_screen.dart';
+import 'orders_screen.dart';
 
 class OrderSuccessScreen extends StatelessWidget {
   final String orderNumber;
@@ -101,11 +102,19 @@ class OrderSuccessScreen extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               TextButton(
-                  onPressed: () {},
-                  child: const Text('Track My Order',
-                      style: TextStyle(
-                          color: Color(0xFF6B5B4F),
-                          fontWeight: FontWeight.w500))),
+                onPressed: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const OrdersScreen(initialIndex: 1)),
+                    (route) => route.isFirst,  // ← jaga route pertama (MenuScreen)
+                  );
+                },
+                child: const Text('Track My Order',
+                    style: TextStyle(
+                        color: Color(0xFF6B5B4F),
+                        fontWeight: FontWeight.w500)),
+              ),
             ],
           ),
         ),

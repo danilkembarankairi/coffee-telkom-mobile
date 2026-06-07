@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/order_model.dart';
 
 class OrderService {
@@ -5,17 +7,52 @@ class OrderService {
   factory OrderService() => _instance;
   OrderService._internal();
 
-  // In-memory storage (untuk demo - nanti bisa diganti dengan database)
   final List<Order> _orders = [];
+  String? _currentUserId;
 
   List<Order> get orders => List.unmodifiable(_orders);
 
-  // Tambah order baru
-  void addOrder(Order order) {
-    _orders.insert(0, order); // Tambah di awal (terbaru dulu)
+  // Load orders milik user yang sedang login
+  Future<void> loadOrdersForUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    _currentUserId = prefs.getString('userId');
+    if (_currentUserId == null || _currentUserId!.isEmpty) {
+      _currentUserId = prefs.getString('userEmail') ?? 'guest';
+    }
+    if (_currentUserId == null || _currentUserId == 'guest') {
+      _orders.clear();
+      return;
+    }
+    final key = 'orders_$_currentUserId';
+    final raw = prefs.getString(key);
+    _orders.clear();
+    if (raw != null) {
+      final List decoded = jsonDecode(raw);
+      _orders.addAll(decoded.map((e) => Order.fromJson(e)));
+    }
   }
 
-  // ✅ LEBIH BAIK - Gunakan firstWhere dengan try-catch
+  // Simpan orders ke SharedPreferences
+  Future<void> _saveOrders() async {
+    if (_currentUserId == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'orders_$_currentUserId';
+    final encoded = jsonEncode(_orders.map((o) => o.toJson()).toList());
+    await prefs.setString(key, encoded);
+  }
+
+  // Tambah order baru
+  Future<void> addOrder(Order order) async {
+    final prefs = await SharedPreferences.getInstance();
+    _currentUserId = prefs.getString('userId');
+    if (_currentUserId == null || _currentUserId!.isEmpty) {
+      // Fallback: pakai email sebagai key jika userId kosong
+      _currentUserId = prefs.getString('userEmail') ?? 'guest';
+    }
+    _orders.insert(0, order);
+    await _saveOrders();
+  }
+
   Order? getOrderById(String id) {
     try {
       return _orders.firstWhere((o) => o.id == id);
@@ -25,7 +62,7 @@ class OrderService {
   }
 
   // Update status order
-  void updateOrderStatus(String id, String newStatus) {
+  Future<void> updateOrderStatus(String id, String newStatus) async {
     final index = _orders.indexWhere((o) => o.id == id);
     if (index != -1) {
       final order = _orders[index];
@@ -42,72 +79,11 @@ class OrderService {
         total: order.total,
         status: newStatus,
       );
+      await _saveOrders();
     }
   }
 
-  // Hapus order (untuk testing)
-  void removeOrder(String id) {
-    _orders.removeWhere((o) => o.id == id);
-  }
-
-  // Clear semua order (untuk testing)
   void clearOrders() {
     _orders.clear();
-  }
-
-  // Generate sample orders untuk demo
-  void addSampleOrders() {
-    if (_orders.isNotEmpty) return;
-
-    addOrder(Order(
-      id: 'CT-20241215-001',
-      orderDate: DateTime.now().subtract(const Duration(hours: 2)),
-      orderType: 'Dine-in',
-      tableNumber: 'Table 3',
-      paymentMethod: 'QRIS',
-      items: [
-        OrderItem(
-          id: 1,
-          name: 'ICED LATTE',
-          price: 30000,
-          quantity: 2,
-          image: 'assets/images/iced-latte.jpg',
-          customization: 'Size: M • Sugar: 50%',
-        ),
-      ],
-      subtotal: 60000,
-      tax: 6600,
-      total: 66600,
-      status: 'Completed',
-    ));
-
-    addOrder(Order(
-      id: 'CT-20241215-002',
-      orderDate: DateTime.now().subtract(const Duration(minutes: 30)),
-      orderType: 'Takeaway',
-      pickupTime: '15:45',
-      paymentMethod: 'GoPay',
-      items: [
-        OrderItem(
-          id: 4,
-          name: 'COLD BREW',
-          price: 33000,
-          quantity: 1,
-          image: 'assets/images/coldbrew.jpeg',
-          customization: 'Size: L • No ice',
-        ),
-        OrderItem(
-          id: 3,
-          name: 'MATCHA LATTE',
-          price: 33000,
-          quantity: 1,
-          image: 'assets/images/matcha-latte.jpg',
-        ),
-      ],
-      subtotal: 66000,
-      tax: 7260,
-      total: 73260,
-      status: 'Preparing',
-    ));
   }
 }

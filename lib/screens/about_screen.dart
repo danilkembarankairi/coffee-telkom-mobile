@@ -3,6 +3,7 @@ import 'menu_screen.dart';
 import 'contact_screen.dart';
 import 'orders_screen.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 class AboutScreen extends StatefulWidget {
   final int initialIndex;
@@ -45,11 +46,18 @@ class _AboutScreenState extends State<AboutScreen> {
         break;
       case 2: // About (current)
         break;
-      case 3: // Contact
+      case 3:
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
               builder: (_) => const ContactScreen(initialIndex: 3)),
+        );
+        break;
+      case 4:                                          // ← TAMBAH
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (_) => const ProfileScreen(initialIndex: 4)),
         );
         break;
     }
@@ -440,6 +448,11 @@ class _AboutScreenState extends State<AboutScreen> {
         'icon': Icons.mail_outline,
         'active': Icons.mail_rounded,
         'label': 'Contact'
+      },
+      {
+        'icon': Icons.person_outline,         
+        'active': Icons.person_rounded,        
+        'label': 'Profile'
       },
     ];
 
