@@ -14,27 +14,23 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  // ✅ FIX: Jangan pakai 'late'
   String _orderType = 'Dine-in';
-  String? _selectedTable;
+  String? _selectedArea;
   String? _selectedPayment;
   bool _isNavigating = false;
 
-  final List<String> _tables = [
-    'Table 1',
-    'Table 2',
-    'Table 3',
-    'Table 4',
-    'Table 5'
+  // Area tempat duduk untuk Coffee Telkom
+  final List<String> _seatingAreas = [
+    'Area A - Window Seat',
+    'Area B - Center',
+    'Area C - Corner',
+    'Area D - Outdoor',
+    'Bar Counter'
   ];
+
+  // Hanya QRIS dan Cash
   final List<Map<String, dynamic>> _paymentMethods = [
     {'id': 'qris', 'name': 'QRIS', 'icon': Icons.qr_code_rounded},
-    {
-      'id': 'gopay',
-      'name': 'GoPay',
-      'icon': Icons.account_balance_wallet_rounded
-    },
-    {'id': 'ovo', 'name': 'OVO', 'icon': Icons.credit_card_rounded},
     {'id': 'cash', 'name': 'Cash', 'icon': Icons.money_rounded},
   ];
 
@@ -77,9 +73,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     _buildOrderTypeToggle(),
                     const SizedBox(height: 24),
                     if (_orderType == 'Dine-in') ...[
-                      _buildSectionTitle('Select Table'),
+                      _buildSectionTitle('Select Seating Area'),
                       const SizedBox(height: 12),
-                      _buildTableSelector(),
+                      _buildSeatingAreaSelector(),
                       const SizedBox(height: 24),
                     ],
                     if (_orderType == 'Takeaway') ...[
@@ -128,7 +124,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               onTap: () {
                 setState(() {
                   _orderType = type;
-                  if (type == 'Dine-in') _selectedTable = null;
+                  if (type == 'Dine-in') _selectedArea = null;
                 });
               },
               child: Container(
@@ -161,20 +157,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _buildTableSelector() {
+  Widget _buildSeatingAreaSelector() {
     return Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: _tables.map((table) {
-          final isSelected = _selectedTable == table;
+        children: _seatingAreas.map((area) {
+          final isSelected = _selectedArea == area;
           return GestureDetector(
             onTap: () {
               setState(() {
-                _selectedTable = table;
+                _selectedArea = area;
               });
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                   color: isSelected ? const Color(0xFF6B5B4F) : Colors.white,
                   borderRadius: BorderRadius.circular(10),
@@ -182,9 +178,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       color: isSelected
                           ? const Color(0xFF6B5B4F)
                           : const Color(0xFFE0D6C9))),
-              child: Text(table,
+              child: Text(area,
                   style: TextStyle(
-                      fontSize: 13,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color:
                           isSelected ? Colors.white : const Color(0xFF3E2723))),
@@ -336,7 +332,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _buildCheckoutButton() {
     final canCheckout = _orderType == 'Dine-in'
-        ? _selectedTable != null && _selectedPayment != null
+        ? _selectedArea != null && _selectedPayment != null
         : _selectedPayment != null;
 
     return Container(
@@ -359,11 +355,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       MaterialPageRoute(
                           builder: (context) => PaymentScreen(
                               orderType: _orderType,
-                              table: _selectedTable,
+                              table: _selectedArea,
                               paymentMethod: _selectedPayment,
                               cartItems: widget.cartItems,
                               total: widget.total)));
-                                if (mounted) setState(() => _isNavigating = false);
+                  if (mounted) setState(() => _isNavigating = false);
                 }
               : null,
           style: ElevatedButton.styleFrom(
@@ -386,7 +382,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-   String _formatPrice(num price) {
+  String _formatPrice(num price) {
     return price.toStringAsFixed(0).replaceAllMapped(
         RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.');
   }

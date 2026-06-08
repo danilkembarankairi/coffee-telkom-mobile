@@ -4,10 +4,11 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/order_model.dart';
 import 'order_detail_screen.dart';
+import 'menu_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
   final int initialIndex;
-  const OrdersScreen({Key? key, this.initialIndex = 1}) : super(key: key);
+  const OrdersScreen({Key? key, this.initialIndex = 0}) : super(key: key);
 
   @override
   State<OrdersScreen> createState() => _OrdersScreenState();
@@ -90,139 +91,166 @@ class _OrdersScreenState extends State<OrdersScreen>
     super.dispose();
   }
 
+  // ✅ FIX: Navigasi back yang aman - cek apakah bisa pop
+  void _handleBack() {
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    } else {
+      // Jika tidak ada route sebelumnya, kembali ke MenuScreen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const MenuScreen(initialIndex: 0)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF8F3),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 100,
-            floating: false,
-            pinned: true,
-            backgroundColor: const Color(0xFFFAF8F3),
-            elevation: 0,
-            leading: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.arrow_back_rounded,
-                    color: Color(0xFF3E2723), size: 20),
-              ),
-              onPressed: () => Navigator.pop(context),
-            ),
-            // ✅ Tombol refresh
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded,
-                    color: Color(0xFF6B5B4F)),
-                onPressed: _fetchOrders,
-                tooltip: 'Refresh',
-              ),
-            ],
-            title: FadeTransition(
-              opacity: _fadeAnimation,
-              child: const Text(
-                'My Orders',
-                style: TextStyle(
-                  color: Color(0xFF3E2723),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 20,
-                ),
-              ),
-            ),
-            centerTitle: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      const Color(0xFFFAF8F3),
-                      const Color(0xFFFAF8F3).withOpacity(0.8),
-                      const Color(0xFFFAF8F3).withOpacity(0.4),
-                      Colors.transparent,
+    return WillPopScope(
+      onWillPop: () async {
+        // ✅ Override back button behavior
+        if (Navigator.canPop(context)) {
+          return true; // izinkan pop
+        }
+        // Jika tidak bisa pop, arahkan ke MenuScreen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MenuScreen(initialIndex: 0)),
+        );
+        return false;
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFFFAF8F3),
+        body: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 100,
+              floating: false,
+              pinned: true,
+              backgroundColor: const Color(0xFFFAF8F3),
+              elevation: 0,
+              leading: IconButton(
+                icon: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
                     ],
-                    stops: const [0.0, 0.5, 0.8, 1.0],
+                  ),
+                  child: const Icon(Icons.arrow_back_rounded,
+                      color: Color(0xFF3E2723), size: 20),
+                ),
+                onPressed: _handleBack, // ✅ Gunakan handler yang aman
+              ),
+              // ✅ Tombol refresh
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.refresh_rounded,
+                      color: Color(0xFF6B5B4F)),
+                  onPressed: _fetchOrders,
+                  tooltip: 'Refresh',
+                ),
+              ],
+              title: FadeTransition(
+                opacity: _fadeAnimation,
+                child: const Text(
+                  'My Orders',
+                  style: TextStyle(
+                    color: Color(0xFF3E2723),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                  ),
+                ),
+              ),
+              centerTitle: true,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        const Color(0xFFFAF8F3),
+                        const Color(0xFFFAF8F3).withOpacity(0.8),
+                        const Color(0xFFFAF8F3).withOpacity(0.4),
+                        Colors.transparent,
+                      ],
+                      stops: const [0.0, 0.5, 0.8, 1.0],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
-          // ✅ Loading state
-          if (_isLoading)
-            const SliverFillRemaining(
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: Color(0xFF6B5B4F),
+            // ✅ Loading state
+            if (_isLoading)
+              const SliverFillRemaining(
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: Color(0xFF6B5B4F),
+                  ),
                 ),
-              ),
-            )
-          // ✅ Error state
-          else if (_errorMessage != null)
-            SliverFillRemaining(
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.wifi_off_rounded,
-                        size: 48, color: Color(0xFFBDBDBD)),
-                    const SizedBox(height: 16),
-                    Text(_errorMessage!,
-                        style: const TextStyle(color: Color(0xFF9E9E9E))),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _fetchOrders,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6B5B4F),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+              )
+            // ✅ Error state
+            else if (_errorMessage != null)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.wifi_off_rounded,
+                          size: 48, color: Color(0xFFBDBDBD)),
+                      const SizedBox(height: 16),
+                      Text(_errorMessage!,
+                          style: const TextStyle(color: Color(0xFF9E9E9E))),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _fetchOrders,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6B5B4F),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Coba Lagi'),
                       ),
-                      child: const Text('Coba Lagi'),
-                    ),
-                  ],
+                    ],
+                  ),
+                ),
+              )
+            // ✅ Empty state
+            else if (_orders.isEmpty)
+              SliverFillRemaining(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: _buildEmptyState(),
+                ),
+              )
+            // ✅ Orders list dari backend
+            else
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final order = _orders[index];
+                      return FadeTransition(
+                        opacity: _fadeAnimation,
+                        child: _buildOrderCard(order, index),
+                      );
+                    },
+                    childCount: _orders.length,
+                  ),
                 ),
               ),
-            )
-          // ✅ Empty state
-          else if (_orders.isEmpty)
-            SliverFillRemaining(
-              child: FadeTransition(
-                opacity: _fadeAnimation,
-                child: _buildEmptyState(),
-              ),
-            )
-          // ✅ Orders list dari backend
-          else
-            SliverPadding(
-              padding: const EdgeInsets.all(16),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final order = _orders[index];
-                    return FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: _buildOrderCard(order, index),
-                    );
-                  },
-                  childCount: _orders.length,
-                ),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -290,7 +318,7 @@ class _OrdersScreenState extends State<OrdersScreen>
               width: 220,
               height: 50,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: _handleBack, // ✅ Gunakan handler yang aman
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF6B5B4F),
                   foregroundColor: Colors.white,
@@ -371,8 +399,8 @@ class _OrdersScreenState extends State<OrdersScreen>
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: Color(int.parse(
-                          order.statusColor.replaceAll('#', '0xFF'))),
+                      color: Color(
+                          int.parse(order.statusColor.replaceAll('#', '0xFF'))),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
-import 'dashboard_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -229,87 +228,91 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 24),
 
                       SizedBox(
-  width: double.infinity,
-  height: 50,
-  child: ElevatedButton(
-    onPressed: () async {
-      if (_formKey.currentState!.validate()) {
-        if (!_agreeToTerms) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Please agree to Terms & Conditions'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            if (_formKey.currentState!.validate()) {
+                              if (!_agreeToTerms) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Please agree to Terms & Conditions'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                                return;
+                              }
 
-        try {
-          final response = await http.post(
-            Uri.parse('https://coffee-telkom.my.id/api/auth/register'),
-            headers: {"Content-Type": "application/json"},
-            body: jsonEncode({
-              "name": _nameController.text,
-              "email": _emailController.text,
-              "phone": _phoneController.text,
-              "password": _passwordController.text,
+                              try {
+                                final response = await http.post(
+                                  Uri.parse(
+                                      'https://coffee-telkom.my.id/api/auth/register'),
+                                  headers: {"Content-Type": "application/json"},
+                                  body: jsonEncode({
+                                    "name": _nameController.text,
+                                    "email": _emailController.text,
+                                    "phone": _phoneController.text,
+                                    "password": _passwordController.text,
+                                  }),
+                                );
 
-            }),
-          );
+                                final data = jsonDecode(response.body);
 
-          final data = jsonDecode(response.body);
+                                if (response.statusCode == 200) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(data['msg']),
+                                      backgroundColor: const Color(0xFF6B5B4F),
+                                    ),
+                                  );
 
-          if (response.statusCode == 200) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(data['msg']),
-                backgroundColor: const Color(0xFF6B5B4F),
-              ),
-            );
-
-            Future.delayed(const Duration(seconds: 2), () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const LoginScreen(),
-                ),
-              );
-            });
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(data['msg'] ?? "Register gagal"),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Error: $e"),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-    },
-    style: ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFF6B5B4F),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      elevation: 0,
-    ),
-    child: const Text(
-      'Create Account',
-      style: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: Colors.white,
-      ),
-    ),
-  ),
-),
+                                  Future.delayed(const Duration(seconds: 2),
+                                      () {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const LoginScreen(),
+                                      ),
+                                    );
+                                  });
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content:
+                                          Text(data['msg'] ?? "Register gagal"),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Error: $e"),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF6B5B4F),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'Create Account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
 
                       const SizedBox(height: 24),
 
