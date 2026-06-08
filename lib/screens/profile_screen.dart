@@ -87,13 +87,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               title: const Text('Kamera'),
               onTap: () async {
-                Navigator.pop(context);
-                final picked = await ImagePicker()
-                    .pickImage(source: ImageSource.camera, imageQuality: 70);
-                if (picked != null) {
-                  setState(() => _pickedImage = File(picked.path));
-                }
-              },
+  Navigator.pop(context);
+
+  final picked = await ImagePicker()
+      .pickImage(
+        source: ImageSource.camera,
+        imageQuality: 70,
+      );
+
+  if (picked != null) {
+  final file = File(picked.path);
+
+  setState(() {
+    _pickedImage = file;
+  });
+
+  await _uploadAvatar(file);
+}
+},
             ),
             ListTile(
               leading: Container(
@@ -106,13 +117,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               title: const Text('Galeri'),
               onTap: () async {
-                Navigator.pop(context);
-                final picked = await ImagePicker()
-                    .pickImage(source: ImageSource.gallery, imageQuality: 70);
-                if (picked != null) {
-                  setState(() => _pickedImage = File(picked.path));
-                }
-              },
+  Navigator.pop(context);
+
+  final picked = await ImagePicker()
+      .pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
+
+  if (picked != null) {
+    final file = File(picked.path);
+
+    setState(() {
+      _pickedImage = file;
+    });
+
+    await _uploadAvatar(file);
+  }
+},
             ),
             const SizedBox(height: 8),
           ],
@@ -167,6 +189,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _showSnack('Nama tidak boleh kosong', isError: true);
       return;
     }
+
+    // Simpan nilai sebelum request
+    final nameToSave = _nameController.text.trim();
+    final phoneToSave = _phoneController.text.trim();
+
+    print('[SAVE] name=$nameToSave phone=$phoneToSave token=$_token');
+
     setState(() => _isSaving = true);
     try {
       final res = await http.put(
@@ -176,26 +205,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'name': _nameController.text.trim(),
-          'phone': _phoneController.text.trim(),
+          'name': nameToSave,
+          'phone': phoneToSave,
         }),
       );
+
+      print('[SAVE] status=${res.statusCode} body=${res.body}');
+
       final data = jsonDecode(res.body);
       if (res.statusCode == 200) {
+        // ✅ Update state langsung dari response, TANPA _loadProfile()
+        // agar tidak ada loading spinner yang reset UI
+        if (!mounted) return;
         setState(() {
           _userData = data['user'];
+          _nameController.text = data['user']['name'] ?? nameToSave;
+          _emailController.text = data['user']['email'] ?? _emailController.text;
+          _phoneController.text = data['user']['phone'] ?? phoneToSave;
           _isEditing = false;
+          _isSaving = false;
         });
         _showSnack('Profil berhasil diperbarui');
+        return; // early return, skip finally setState
       } else {
         _showSnack(data['msg'] ?? 'Gagal menyimpan', isError: true);
       }
     } catch (e) {
+      print('[SAVE] error=$e');
       _showSnack('Koneksi gagal: $e', isError: true);
-    } finally {
-      setState(() => _isSaving = false);
     }
+    if (mounted) setState(() => _isSaving = false);
   }
+
+  Future<void> _uploadAvatar(File imageFile) async {
+  try {
+    final request = http.MultipartRequest(
+      'PUT',
+      Uri.parse('$baseUrl/user/avatar'),
+    );
+
+    request.headers['Authorization'] =
+        'Bearer $_token';
+
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'avatar',
+        imageFile.path,
+      ),
+    );
+
+    final response = await request.send();
+
+    final responseBody =
+        await response.stream.bytesToString();
+
+    final data = jsonDecode(responseBody);
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _userData?['avatar'] = data['avatar'];
+      });
+
+      _showSnack('Foto profil berhasil diperbarui');
+    } else {
+      _showSnack(
+        data['msg'] ?? 'Upload avatar gagal',
+        isError: true,
+      );
+    }
+  } catch (e) {
+    _showSnack(
+      'Upload avatar gagal: $e',
+      isError: true,
+    );
+  }
+}
 
   // ─── Change password ─────────────────────────────────────────────
   Future<void> _changePassword() async {
@@ -679,120 +763,22 @@ _buildActionItem(
 
   // ─── Change password bottom sheet ────────────────────────────────
   void _showChangePasswordSheet() {
+    _oldPasswordController.clear();
+    _newPasswordController.clear();
+    _confirmPasswordController.clear();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
-        ),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Text(
-                    'Ganti Password',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF3E2723),
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                    color: const Color(0xFF9E9E9E),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _buildPasswordField(
-                  label: 'Password Lama',
-                  controller: _oldPasswordController,
-                  obscure: _obscureOld,
-                  toggle: () => setState(() => _obscureOld = !_obscureOld)),
-              const SizedBox(height: 12),
-              _buildPasswordField(
-                  label: 'Password Baru',
-                  controller: _newPasswordController,
-                  obscure: _obscureNew,
-                  toggle: () => setState(() => _obscureNew = !_obscureNew)),
-              const SizedBox(height: 12),
-              _buildPasswordField(
-                  label: 'Konfirmasi Password Baru',
-                  controller: _confirmPasswordController,
-                  obscure: _obscureConfirm,
-                  toggle: () =>
-                      setState(() => _obscureConfirm = !_obscureConfirm)),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSaving ? null : _changePassword,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF6B5B4F),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Simpan Password',
-                          style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPasswordField({
-    required String label,
-    required TextEditingController controller,
-    required bool obscure,
-    required VoidCallback toggle,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscure,
-      style: const TextStyle(fontSize: 14, color: Color(0xFF3E2723)),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 13),
-        filled: true,
-        fillColor: const Color(0xFFF5F0E8),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        suffixIcon: IconButton(
-          icon: Icon(
-            obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
-            size: 20,
-            color: const Color(0xFF9E9E9E),
-          ),
-          onPressed: toggle,
-        ),
+      builder: (_) => _ChangePasswordSheet(
+        token: _token,
+        baseUrl: baseUrl,
+        onSuccess: () {
+          Navigator.pop(context);
+          _showSnack('Password berhasil diubah');
+        },
+        onError: (msg) => _showSnack(msg, isError: true),
       ),
     );
   }
@@ -979,5 +965,193 @@ _buildActionItem(
   void _onTabTapped(int index) {
     if (index == 4) return; // already here
     Navigator.pop(context); // pop back, then menu_screen handles routing
+  }
+}
+// ─── Widget terpisah untuk bottom sheet ganti password ───────────
+class _ChangePasswordSheet extends StatefulWidget {
+  final String? token;
+  final String baseUrl;
+  final VoidCallback onSuccess;
+  final Function(String) onError;
+
+  const _ChangePasswordSheet({
+    required this.token,
+    required this.baseUrl,
+    required this.onSuccess,
+    required this.onError,
+  });
+
+  @override
+  State<_ChangePasswordSheet> createState() => _ChangePasswordSheetState();
+}
+
+class _ChangePasswordSheetState extends State<_ChangePasswordSheet> {
+  final _oldCtrl = TextEditingController();
+  final _newCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+
+  bool _obscureOld = true;
+  bool _obscureNew = true;
+  bool _obscureConfirm = true;
+  bool _isSaving = false;
+  String? _errorMsg;
+
+  @override
+  void dispose() {
+    _oldCtrl.dispose();
+    _newCtrl.dispose();
+    _confirmCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_oldCtrl.text.isEmpty || _newCtrl.text.isEmpty || _confirmCtrl.text.isEmpty) {
+      setState(() => _errorMsg = 'Semua field harus diisi');
+      return;
+    }
+    if (_newCtrl.text.length < 6) {
+      setState(() => _errorMsg = 'Password baru minimal 6 karakter');
+      return;
+    }
+    if (_newCtrl.text != _confirmCtrl.text) {
+      setState(() => _errorMsg = 'Password baru dan konfirmasi tidak cocok');
+      return;
+    }
+    if (_oldCtrl.text == _newCtrl.text) {
+      setState(() => _errorMsg = 'Password baru tidak boleh sama dengan password lama');
+      return;
+    }
+
+    setState(() { _isSaving = true; _errorMsg = null; });
+
+    try {
+      final res = await http.put(
+        Uri.parse('${widget.baseUrl}/user/change-password'),
+        headers: {
+          'Authorization': 'Bearer ${widget.token}',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'oldPassword': _oldCtrl.text,
+          'newPassword': _newCtrl.text,
+        }),
+      );
+      final data = jsonDecode(res.body);
+      if (res.statusCode == 200) {
+        widget.onSuccess();
+      } else {
+        setState(() => _errorMsg = data['msg'] ?? 'Gagal mengubah password');
+      }
+    } catch (e) {
+      setState(() => _errorMsg = 'Koneksi gagal');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Text('Ganti Password',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF3E2723))),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                  color: const Color(0xFF9E9E9E),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _buildField('Password Lama', _oldCtrl, _obscureOld,
+                () => setState(() => _obscureOld = !_obscureOld)),
+            const SizedBox(height: 12),
+            _buildField('Password Baru', _newCtrl, _obscureNew,
+                () => setState(() => _obscureNew = !_obscureNew)),
+            const SizedBox(height: 12),
+            _buildField('Konfirmasi Password Baru', _confirmCtrl, _obscureConfirm,
+                () => setState(() => _obscureConfirm = !_obscureConfirm)),
+            if (_errorMsg != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.red[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: Colors.red[700], size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(_errorMsg!,
+                          style: TextStyle(color: Colors.red[700], fontSize: 13)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isSaving ? null : _submit,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6B5B4F),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: _isSaving
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    : const Text('Simpan Password',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField(String label, TextEditingController ctrl, bool obscure, VoidCallback toggle) {
+    return TextField(
+      controller: ctrl,
+      obscureText: obscure,
+      onChanged: (_) { if (_errorMsg != null) setState(() => _errorMsg = null); },
+      style: const TextStyle(fontSize: 14, color: Color(0xFF3E2723)),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Color(0xFF9E9E9E), fontSize: 13),
+        filled: true,
+        fillColor: const Color(0xFFF5F0E8),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        suffixIcon: IconButton(
+          icon: Icon(
+            obscure ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+            size: 20, color: const Color(0xFF9E9E9E),
+          ),
+          onPressed: toggle,
+        ),
+      ),
+    );
   }
 }

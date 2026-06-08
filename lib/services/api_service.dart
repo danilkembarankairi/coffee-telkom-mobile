@@ -51,6 +51,24 @@ class ApiService {
     return data;
   }
 
+  // ─── POST /api/auth/google ─────────────────────────────────────
+  // Kirim access_token dari GoogleSignIn ke backend,
+  // backend yang verifikasi ke Google API
+  static Future<Map<String, dynamic>> loginWithGoogle(
+    String accessToken,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/google'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'access_token': accessToken}),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200 && data['token'] != null) {
+      await saveSession(data['token'], data['user']);
+    }
+    return data;
+  }
+
   // ─── POST /api/auth/register ───────────────────────────────────
   static Future<Map<String, dynamic>> register(
     String name,
@@ -106,6 +124,16 @@ class ApiService {
         'oldPassword': oldPassword,
         'newPassword': newPassword,
       }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  // ─── POST /api/password/forgot ────────────────────────────────
+  static Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/password/forgot'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
     );
     return jsonDecode(response.body);
   }

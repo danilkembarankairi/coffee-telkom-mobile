@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'register_screen.dart';
-import 'menu_screen.dart'; 
+import 'menu_screen.dart';
+import 'forgot_password_screen.dart';
 import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key})
-      : super(key: key); // ✅ Tidak ada parameter 'from'
+  const LoginScreen({Key? key}) : super(key: key);
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -17,12 +18,101 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  bool _isLoading = false;
+  bool _isGoogleLoading = false;
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+  // Web client ID (untuk serverClientId - wajib agar dapat accessToken)
+  serverClientId: '335247538737-gh8vp9bv700tmmi9avq20ls6oe20nv5p.apps.googleusercontent.com',
+  scopes: ['email', 'profile'],
+);
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  // ─── Login email/password ────────────────────────────────────────
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await ApiService.login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      if (result['token'] != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MenuScreen(initialIndex: 0),
+          ),
+        );
+      } else {
+        _showSnack(result['msg'] ?? 'Login gagal', isError: true);
+      }
+    } catch (e) {
+      _showSnack('Koneksi gagal. Periksa internet kamu.', isError: true);
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ─── Login Google ────────────────────────────────────────────────
+  Future<void> _loginWithGoogle() async {
+    setState(() => _isGoogleLoading = true);
+
+    try {
+      final account = await _googleSignIn.signIn();
+      if (account == null) {
+        // User cancel
+        setState(() => _isGoogleLoading = false);
+        return;
+      }
+
+      final auth = await account.authentication;
+      final accessToken = auth.accessToken;
+
+      if (accessToken == null) {
+        _showSnack('Gagal mendapatkan token Google', isError: true);
+        setState(() => _isGoogleLoading = false);
+        return;
+      }
+
+      final result = await ApiService.loginWithGoogle(accessToken);
+
+      if (!mounted) return;
+
+      if (result['token'] != null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const MenuScreen(initialIndex: 0),
+          ),
+        );
+      } else {
+        _showSnack(result['msg'] ?? 'Login Google gagal', isError: true);
+      }
+    } catch (e) {
+      _showSnack('Login Google gagal: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isGoogleLoading = false);
+    }
+  }
+
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: isError ? Colors.red[700] : const Color(0xFF6B5B4F),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
   }
 
   @override
@@ -99,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Email or Phone',
+                        'Email',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -134,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter your email or phone';
+                            return 'Email tidak boleh kosong';
                           }
                           return null;
                         },
@@ -191,7 +281,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'Please enter your password';
+                            return 'Password tidak boleh kosong';
                           }
                           return null;
                         },
@@ -223,15 +313,23 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ],
                           ),
+                          // ✅ FIX: Forgot Password sekarang navigate ke screen baru
                           TextButton(
                             onPressed: () {
-                              // Forgot password logic
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const ForgotPasswordScreen(),
+                                ),
+                              );
                             },
                             child: const Text(
                               'Forgot Password?',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF6B5B4F),
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -245,66 +343,32 @@ class _LoginScreenState extends State<LoginScreen> {
                         width: double.infinity,
                         height: 50,
                         child: ElevatedButton(
-                          onPressed: () async {
-  if (!_formKey.currentState!.validate()) return;
-
-  try {
-    final result = await ApiService.login(
-      _emailController.text.trim(),
-      _passwordController.text.trim(),
-    );
-
-    print(result);
-
-    if (result['token'] != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Login berhasil'),
-        ),
-      );
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const MenuScreen(
-            initialIndex: 0,
-          ),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result['msg'] ?? 'Login gagal',
-          ),
-        ),
-      );
-    }
-  } catch (e) {
-    print(e);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Error: $e'),
-      ),
-    );
-  }
-},
+                          onPressed: _isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFF6B5B4F),
+                            disabledBackgroundColor: const Color(0xFFBCAAA4),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                             elevation: 0,
                           ),
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Login',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
 
@@ -330,34 +394,52 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       const SizedBox(height: 24),
 
-                      // Social Login Buttons
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildSocialButton(
-                            icon: Icons.g_mobiledata,
-                            color: Colors.red,
-                            onPressed: () {
-                              // Google login
-                            },
+                      // ✅ Hanya Google button (FB & Apple dihapus)
+                      Center(
+                        child: GestureDetector(
+                          onTap: _isGoogleLoading ? null : _loginWithGoogle,
+                          child: Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              border:
+                                  Border.all(color: const Color(0xFFD7CCC8)),
+                              borderRadius: BorderRadius.circular(14),
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: _isGoogleLoading
+                                ? const Center(
+                                    child: SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFF6B5B4F),
+                                      ),
+                                    ),
+                                  )
+                                : Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Image.asset(
+                                      'assets/images/google_logo.png',
+                                      errorBuilder:
+                                          (context, error, stackTrace) =>
+                                              const Icon(
+                                        Icons.g_mobiledata,
+                                        color: Colors.red,
+                                        size: 30,
+                                      ),
+                                    ),
+                                  ),
                           ),
-                          const SizedBox(width: 16),
-                          _buildSocialButton(
-                            icon: Icons.facebook,
-                            color: Colors.blue,
-                            onPressed: () {
-                              // Facebook login
-                            },
-                          ),
-                          const SizedBox(width: 16),
-                          _buildSocialButton(
-                            icon: Icons.apple,
-                            color: Colors.black,
-                            onPressed: () {
-                              // Apple login
-                            },
-                          ),
-                        ],
+                        ),
                       ),
 
                       const SizedBox(height: 32),
@@ -378,7 +460,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const RegisterScreen(),
+                                  builder: (context) =>
+                                      const RegisterScreen(),
                                 ),
                               );
                             },
@@ -400,26 +483,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildSocialButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return GestureDetector(
-      onTap: onPressed,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFFD7CCC8)),
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
-        ),
-        child: Icon(icon, color: color, size: 28),
       ),
     );
   }

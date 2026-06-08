@@ -5,7 +5,6 @@ const User = require('../models/user');
 const auth = require('../middleware/auth');
 
 // ─── GET /api/user/profile ────────────────────────────────────────
-// Ambil data profil user yang sedang login
 router.get('/profile', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select('-password');
@@ -30,7 +29,6 @@ router.get('/profile', auth, async (req, res) => {
 });
 
 // ─── PUT /api/user/profile ────────────────────────────────────────
-// Update nama & nomor HP user
 router.put('/profile', auth, async (req, res) => {
   const { name, phone } = req.body;
 
@@ -39,11 +37,18 @@ router.put('/profile', auth, async (req, res) => {
   }
 
   try {
+    // ✅ FIX: Pakai $set eksplisit agar field phone yang belum ada
+    // di dokumen lama tetap bisa ditambahkan/diupdate
+    // Dan pisahkan .select() dari options object
     const user = await User.findByIdAndUpdate(
       req.user._id,
-      { name: name.trim(), phone: phone?.trim() || '' },
-      { new: true, select: '-password' }
-    );
+      { $set: { name: name.trim(), phone: (phone || '').trim() } },
+      { new: true }
+    ).select('-password');
+
+    if (!user) return res.status(404).json({ msg: 'User tidak ditemukan' });
+
+    console.log('[UPDATE PROFILE] userId:', req.user._id, 'phone:', user.phone);
 
     res.json({
       msg: 'Profil berhasil diperbarui',
@@ -63,7 +68,6 @@ router.put('/profile', auth, async (req, res) => {
 });
 
 // ─── PUT /api/user/change-password ───────────────────────────────
-// Ganti password dengan verifikasi password lama
 router.put('/change-password', auth, async (req, res) => {
   const { oldPassword, newPassword } = req.body;
 
@@ -77,7 +81,6 @@ router.put('/change-password', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
 
-    // Kalau akun Google (tidak punya password), tolak
     if (!user.password) {
       return res.status(400).json({
         msg: 'Akun Google tidak bisa ganti password di sini',

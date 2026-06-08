@@ -31,7 +31,7 @@ router.post('/register', async (req, res) => {
     res.json({
       msg: 'Registrasi berhasil',
       token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      user: { id: user._id, name: user.name, email: user.email, phone: user.phone || '', role: user.role },
     });
   } catch (err) {
     console.error(err);
@@ -56,7 +56,7 @@ router.post('/login', async (req, res) => {
     res.json({
       msg: 'Login berhasil',
       token,
-      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      user: { id: user._id, name: user.name, email: user.email, phone: user.phone || '', role: user.role },
     });
   } catch (err) {
     console.error(err);
